@@ -28,6 +28,7 @@ namespace nurl
         public bool bSkipHeaders = false;
         public bool bUseContentLength = false;
         const string STR_GZIP = "content-encoding: gzip";
+        const string STR_CONTENTLENGTH = "content-length: ";
         
 
         /// <summary>
@@ -37,10 +38,7 @@ namespace nurl
         /// <returns></returns>
         static bool isGzipLine(string strAll)
         {
-            
-
             if(strAll == null) return false;
-
             if(strAll.ToLower().Contains(STR_GZIP)) return true;
 
             return false;
@@ -48,12 +46,11 @@ namespace nurl
 
         static int getContentLength(string strAll)
         {
-            string strGzip = "Content-Length: ".ToLower();
-
+            
 
             if (strAll == null) return -1;
 
-            if (strAll.ToLower().Contains(strGzip))
+            if (strAll.ToLower().Contains(STR_CONTENTLENGTH))
             {
                 string[] strPart = strAll.Split(new char[] { ':' });
                 int result = -1;
