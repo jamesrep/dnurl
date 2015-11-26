@@ -46,8 +46,6 @@ namespace nurl
 
         static int getContentLength(string strAll)
         {
-            
-
             if (strAll == null) return -1;
 
             if (strAll.ToLower().Contains(STR_CONTENTLENGTH))
@@ -68,6 +66,15 @@ namespace nurl
             return -1;
         }
 
+        /// <summary>
+        /// Always returns true for accepting all certificates (WARNING!!!!)
+        /// 
+        /// </summary>
+        /// <param name="sender"></param>
+        /// <param name="certificate"></param>
+        /// <param name="chain"></param>
+        /// <param name="sslPolicyErrors"></param>
+        /// <returns></returns>
         static bool verifyServerCertificate(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors)
         {
             return true;
