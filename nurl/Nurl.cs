@@ -88,6 +88,11 @@ namespace nurl
 
             if (strOutfile != null)
             {
+                if (File.Exists(strOutfile))
+                {
+                    File.Delete(strOutfile);
+                }
+
                 sw = new FileStream(strOutfile, FileMode.OpenOrCreate);
             }
 
@@ -163,7 +168,17 @@ namespace nurl
             StreamReader sr = new StreamReader(stream);
 
             // First read the header. If the encoding is gzip we need to decompress the result
-            string strHeaderLine = sr.ReadLine();
+            string strHeaderLine = null;
+
+            try
+            {
+                strHeaderLine = sr.ReadLine();
+            }
+            catch (System.IO.IOException)
+            {
+                return string.Empty;
+            }
+
             byte[] btsLF = ASCIIEncoding.ASCII.GetBytes(strLinefeed);
             int contentLength = -1;
 
@@ -191,9 +206,16 @@ namespace nurl
                 {
                     contentLength = getContentLength(strHeaderLine);
                 }
-                
 
-                strHeaderLine = sr.ReadLine();
+
+                try
+                {
+                    strHeaderLine = sr.ReadLine();
+                }
+                catch (System.IO.IOException)
+                {
+                    break;
+                }
             }
 
             if (strHeaderLine == string.Empty)
