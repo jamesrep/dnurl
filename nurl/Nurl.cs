@@ -27,6 +27,7 @@ namespace nurl
         public bool bEchoWrite = true;
         public bool bSkipHeaders = false;
         public bool bUseContentLength = false;
+        const string STR_GZIP = "content-encoding: gzip";
         
 
         /// <summary>
@@ -36,11 +37,11 @@ namespace nurl
         /// <returns></returns>
         static bool isGzipLine(string strAll)
         {
-            string strGzip = "Content-Encoding: gzip".ToLower();
+            
 
             if(strAll == null) return false;
 
-            if(strAll.ToLower().Contains(strGzip)) return true;
+            if(strAll.ToLower().Contains(STR_GZIP)) return true;
 
             return false;
         }
