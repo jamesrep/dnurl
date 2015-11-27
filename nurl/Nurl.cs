@@ -27,8 +27,10 @@ namespace nurl
         public bool bEchoWrite = true;
         public bool bSkipHeaders = false;
         public bool bUseContentLength = false;
+        public bool bParseContentLength = true;
         const string STR_GZIP = "content-encoding: gzip";
         const string STR_CONTENTLENGTH = "content-length: ";
+        const string STR_CONTENTLENGTH_FIRST = "content-length:";
         
 
         /// <summary>
@@ -80,17 +82,135 @@ namespace nurl
             return true;
         }
 
+        /// <summary>
+        /// Gets the start position of post message.
+        /// </summary>
+        /// <param name="btsToSend"></param>
+        /// <returns></returns>
+        static int getPostStart(byte[] btsToSend)
+        {
+            if (btsToSend == null) return 0;
+
+            int lfCount = 0;
+
+            for (int i = 0; i < btsToSend.Length; i++)
+            {
+                if ('\n' == (char)btsToSend[i])
+                {
+                    lfCount++;
+
+                    if (lfCount == 2)
+                    {
+                        return i+1;
+                    }
+                }
+                else if('\r' != (char)btsToSend[i])
+                {
+                    lfCount = 0;
+                }
+            }
+
+            return -1;
+        }
+
 
         /// <summary>
         /// Execute the send and receive
         /// </summary>
         public void run()
-        {           
+        {
+            if (!File.Exists(strFileName))
+            {
+                Console.WriteLine("[-] Error: File does not exist: " + strFileName);
+                return;
+            }
+
+            // Read all bytes and prepare TCP client.
             Stream stream = null;
             byte[] btsToSend = File.ReadAllBytes(strFileName);
             TcpClient client = new TcpClient(strHost, port);
             FileStream sw = null;
+            
+            // Parse content length and replace the current value with the proper one 
+            // TODO: Move this to a separate function.
+            if (bParseContentLength)
+            {
+                int postStart = getPostStart(btsToSend); // Get start position of the post message.
 
+                if (postStart >= 0) // If we have a post message
+                {
+                    string strAscii = System.Text.ASCIIEncoding.ASCII.GetString(btsToSend);
+
+                    if (strAscii != null)
+                    {
+                        string strAscii2 = strAscii.Replace(" ", "").ToLower();
+
+                        int lengthIndex = strAscii2.IndexOf(STR_CONTENTLENGTH_FIRST);
+                        int realLengthIndex = strAscii.ToLower().IndexOf(STR_CONTENTLENGTH_FIRST);
+
+                        if (lengthIndex >= 0)
+                        {
+                            int x = 0;
+                            int starter = lengthIndex + STR_CONTENTLENGTH_FIRST.Length;
+                            int realStarter = realLengthIndex + STR_CONTENTLENGTH_FIRST.Length + 1;
+
+                            for (x = starter; x < strAscii2.Length; x++)
+                            {
+                                if (strAscii2[x] == '\r' || strAscii2[x] == '\n')
+                                {
+                                    break;
+                                }
+                            }
+
+                            if (x > starter)
+                            {
+                                string strLengthText = strAscii2.Substring(starter, (x - starter));
+                                int lengthRes = 0;
+
+                                // If we have an integer we replace it with the real content length.
+                                if (int.TryParse(strLengthText, out lengthRes))
+                                {
+                                    int realContentLength = btsToSend.Length - postStart;
+
+                                    // We only replace if we do not have the same
+                                    if (realContentLength != lengthRes)
+                                    {
+                                        // Get Real length bytes
+                                        byte[] btsToSet = System.Text.ASCIIEncoding.ASCII.GetBytes(realContentLength.ToString());
+
+                                        // Create final array
+                                        byte[] btsFull = new byte[realStarter + btsToSet.Length + (btsToSend.Length - realStarter - strLengthText.Length)];
+
+                                        // Part 1.
+                                        byte[] btsFirst = new byte[realStarter];
+                                        Array.Copy(btsToSend, btsFirst, realStarter);
+
+                                        // Part 3.
+                                        byte[] btsLast = new byte[btsFull.Length - realStarter - btsToSet.Length];
+                                        Array.Copy(btsToSend, realStarter + strLengthText.Length, btsLast, 0, btsLast.Length);
+
+
+                                        // Smash all parts together
+                                        Array.Copy(btsFirst, btsFull, btsFirst.Length);
+                                        Array.Copy(btsToSet, 0, btsFull, btsFirst.Length, btsToSet.Length);
+                                        Array.Copy(btsLast, 0, btsFull, btsFirst.Length + btsToSet.Length, btsLast.Length);
+
+                                        btsToSend = btsFull;
+                                    }
+
+                                }
+                                else
+                                {
+                                    Console.WriteLine("[-] ERROR: Can not parse the supplied content-length: " + strLengthText);
+                                }
+                            }
+                        }
+                    }
+                }
+                
+            }
+
+            // If we should use an output file
             if (strOutfile != null)
             {
                 if (File.Exists(strOutfile))
@@ -101,6 +221,7 @@ namespace nurl
                 sw = new FileStream(strOutfile, FileMode.OpenOrCreate);
             }
 
+            // If we should use SSL
             if (bIsSSL)
             {
                 stream = new SslStream(client.GetStream(), false,
@@ -114,12 +235,12 @@ namespace nurl
                 stream = client.GetStream();                
             }
 
+            // Set timeouts
             stream.ReadTimeout = readTimeout;
             stream.WriteTimeout = writeTimeout;
 
             // Send HTTP-request to host.
             stream.Write(btsToSend, 0, btsToSend.Length);
-
 
             // Write sent bytes to file and stdout
             if (bEchoWrite)

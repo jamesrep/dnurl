@@ -17,6 +17,7 @@ namespace nurl
             Console.WriteLine("--ssl - Use SSL for HTTPS connections");
             Console.WriteLine("--skipheaders - If headers should be skipped");
             Console.WriteLine("--skipsent - If sent http-request should be skipped");
+            Console.WriteLine("--skipadjust - If we should NOT try to adjust the content-length");
             Console.WriteLine("--binary - Do not try to interpret HTTP-headers");
 
         }
@@ -50,6 +51,10 @@ namespace nurl
                 else if (args[i] == "--parselength")
                 {
                     nurl.bUseContentLength = true;
+                }
+                else if (args[i] == "--skipadjust")
+                {
+                    nurl.bParseContentLength = false; // False if we should not adjust the supplied length.
                 }
                  
 
