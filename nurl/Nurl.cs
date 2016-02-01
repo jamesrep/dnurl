@@ -135,7 +135,7 @@ namespace nurl
             // TODO: make replacer-class instead.
             for(int i=0; i < strReplacers.Count; i+=2)
             {
-                strAscii.Replace(strReplacers[i], strReplacers[i + 1]);
+                strAscii = strAscii.Replace(strReplacers[i], strReplacers[i + 1]);
             }
 
             return System.Text.ASCIIEncoding.ASCII.GetBytes(strAscii);
