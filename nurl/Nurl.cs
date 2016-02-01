@@ -8,6 +8,7 @@ using System.Text;
 using System.Security.Cryptography.X509Certificates;
 using System.IO;
 using System.IO.Compression;
+using System.Collections.Generic;
 
 
 namespace nurl
@@ -28,6 +29,10 @@ namespace nurl
         public bool bSkipHeaders = false;
         public bool bUseContentLength = false;
         public bool bParseContentLength = true;
+        public int receiveTimeout = -1;
+        public int sendTimeout = -1;
+        public List <string> strReplacers = new List<string>();
+
         const string STR_GZIP = "content-encoding: gzip";
         const string STR_CONTENTLENGTH = "content-length: ";
         const string STR_CONTENTLENGTH_FIRST = "content-length:";
@@ -113,6 +118,28 @@ namespace nurl
             return -1;
         }
 
+        /// <summary>
+        ///  Replaces text in body.
+        /// </summary>
+        /// <param name="btsToSend"></param>
+        /// <returns></returns>
+        byte [] replaceText(byte[] btsToSend)
+        {
+            string strAscii = System.Text.ASCIIEncoding.ASCII.GetString(btsToSend);
+
+            if (this.strReplacers.Count < 1)
+            {
+                return btsToSend;
+            }
+
+            // TODO: make replacer-class instead.
+            for(int i=0; i < strReplacers.Count; i+=2)
+            {
+                strAscii.Replace(strReplacers[i], strReplacers[i + 1]);
+            }
+
+            return System.Text.ASCIIEncoding.ASCII.GetBytes(strAscii);
+        }
 
         /// <summary>
         /// Execute the send and receive
@@ -127,9 +154,21 @@ namespace nurl
 
             // Read all bytes and prepare TCP client.
             Stream stream = null;
-            byte[] btsToSend = File.ReadAllBytes(strFileName);
             TcpClient client = new TcpClient(strHost, port);
             FileStream sw = null;
+            byte[] btsToSend = File.ReadAllBytes(strFileName);
+
+            btsToSend = replaceText(btsToSend);
+
+            if(this.receiveTimeout >= 0)
+            {
+                client.ReceiveTimeout = receiveTimeout;
+            }
+
+            if (this.sendTimeout >= 0)
+            {
+                client.SendTimeout = sendTimeout;
+            }
             
             // Parse content length and replace the current value with the proper one 
             // TODO: Move this to a separate function.
@@ -224,9 +263,7 @@ namespace nurl
             // If we should use SSL
             if (bIsSSL)
             {
-                stream = new SslStream(client.GetStream(), false,
-                new RemoteCertificateValidationCallback(verifyServerCertificate),
-                null);
+                stream = new SslStream(client.GetStream(), false, new RemoteCertificateValidationCallback(verifyServerCertificate), null);
                 ((SslStream) stream).AuthenticateAsClient(strHost);                
 
             }

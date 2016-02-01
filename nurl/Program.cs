@@ -19,6 +19,9 @@ namespace nurl
             Console.WriteLine("--skipsent - If sent http-request should be skipped");
             Console.WriteLine("--skipadjust - If we should NOT try to adjust the content-length");
             Console.WriteLine("--binary - Do not try to interpret HTTP-headers");
+            Console.WriteLine("--sendtimeout - Send-timeout for client");
+            Console.WriteLine("--receivetimeout - Receive-timeout for client");
+            Console.WriteLine("--replace <replace> <newtext> - Replace a text with another before send");
 
         }
 
@@ -70,10 +73,25 @@ namespace nurl
                         i++;
                         nurl.port = Convert.ToInt32(args[i]);
                     }
+                    else if (args[i] == "--sendtimeout")
+                    {
+                        i++;
+                        nurl.sendTimeout = Convert.ToInt32(args[i]);
+                    }
+                    else if (args[i] == "--receivetimeout")
+                    {
+                        i++;
+                        nurl.receiveTimeout = Convert.ToInt32(args[i]);
+                    }
                     else if (args[i] == "--host")
                     {
                         i++;
                         nurl.strHost = args[i];
+                    }
+                    else if (args[i] == "--replace")
+                    {
+                        nurl.strReplacers.Add(args[++i]);
+                        nurl.strReplacers.Add(args[++i]);
                     }
                     else if (args[i] == "--out")
                     {
