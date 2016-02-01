@@ -22,6 +22,7 @@ namespace nurl
             Console.WriteLine("--sendtimeout - Send-timeout for client");
             Console.WriteLine("--receivetimeout - Receive-timeout for client");
             Console.WriteLine("--replace <replace> <newtext> - Replace a text with another before send");
+            Console.WriteLine("--append - If the output file should be opened for append (not reset)");
 
         }
 
@@ -58,6 +59,10 @@ namespace nurl
                 else if (args[i] == "--skipadjust")
                 {
                     nurl.bParseContentLength = false; // False if we should not adjust the supplied length.
+                }
+                else if (args[i] == "--append")
+                {
+                    nurl.bAppend = true; 
                 }
                  
 

@@ -32,6 +32,7 @@ namespace nurl
         public int receiveTimeout = -1;
         public int sendTimeout = -1;
         public List <string> strReplacers = new List<string>();
+        public bool bAppend = false;
 
         const string STR_GZIP = "content-encoding: gzip";
         const string STR_CONTENTLENGTH = "content-length: ";
@@ -252,12 +253,21 @@ namespace nurl
             // If we should use an output file
             if (strOutfile != null)
             {
-                if (File.Exists(strOutfile))
+                if (!this.bAppend)
                 {
-                    File.Delete(strOutfile);
+                    if (File.Exists(strOutfile))
+                    {
+                        File.Delete(strOutfile);
+                    }
+
+                    sw = new FileStream(strOutfile, FileMode.OpenOrCreate);
+                }
+                else
+                {
+                    sw = new FileStream(strOutfile, FileMode.Append);
                 }
 
-                sw = new FileStream(strOutfile, FileMode.OpenOrCreate);
+                
             }
 
             // If we should use SSL
@@ -300,7 +310,6 @@ namespace nurl
             // Write message
             Console.WriteLine(messageData);
             
-
             // Clean up
             client.Close();
             stream.Close();
