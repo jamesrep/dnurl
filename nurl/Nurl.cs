@@ -18,7 +18,7 @@ namespace nurl
         public string strFileName;
         public string strHost;
         public string strOutfile;
-        public int port;
+        public int port = 443;
         public int readTimeout = 5000;
         public int writeTimeout = 5000;
         public bool bIsSSL = false;
