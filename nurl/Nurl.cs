@@ -35,7 +35,14 @@ namespace nurl
         public bool bAppend = false;
         public List<Stream> outputStreams = new List<Stream>(); /// Output streams to use.
 
-        const string STR_GZIP = "content-encoding: gzip";
+        public bool bIsChunked = false;
+        public bool bIsGzip = false;
+        public bool bDecodeChunked = true;
+
+        Decoder decoder = Encoding.ASCII.GetDecoder();             
+
+        const string STR_GZIP = "content-encoding:";
+        const string STR_CHUNKED = "transfer-encoding:";
         const string STR_CONTENTLENGTH = "content-length: ";
         const string STR_CONTENTLENGTH_FIRST = "content-length:";
         
@@ -47,10 +54,43 @@ namespace nurl
         /// <returns></returns>
         static bool isGzipLine(string strAll)
         {
-            if(strAll == null) return false;
-            if(strAll.ToLower().Contains(STR_GZIP)) return true;
+            return isExactHeaderStatement(strAll, STR_GZIP, "gzip");
+        }
+
+        static bool isExactHeaderStatement(string strAll, string strLeft, string strRight)
+        {
+            if (strAll == null) return false;
+            if (strAll.ToLower().Contains(strLeft))
+            {
+                string[] strEncoding = strAll.Split(new char[] { ':' });
+
+                if (strEncoding.Length > 1 && strEncoding[1].Trim().ToLower() == strRight)
+                {
+                    return true;
+                }
+            }
 
             return false;
+        }
+
+        static bool isContainedHeaderStatement(string strAll, string strLeft, string strRight)
+        {
+            if (strAll == null) return false;
+            if (strAll.ToLower().Contains(strLeft))
+            {
+                string[] strEncoding = strAll.Split(new char[] { ':' });
+
+                if (strEncoding.Length > 1 && strEncoding[1].Trim().ToLower().Contains(strRight))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+        static bool isChunkedLine(string strAll)
+        {
+            return isExactHeaderStatement(strAll, STR_CHUNKED, "chunked");
         }
 
         /// <summary>
@@ -520,9 +560,8 @@ namespace nurl
         /// <returns>The string that has been read</returns>
         string readMessage(Stream streamFromServer) 
         {
-            Stream streamToUse = streamFromServer; 
             StringBuilder messageData = new StringBuilder();            
-            StreamReader sr = new StreamReader(streamFromServer);
+            BinaryLineStream sr = new BinaryLineStream(streamFromServer);
 
             // First read the header. If the encoding is gzip we need to decompress the result
             string strHeaderLine = null;
@@ -536,9 +575,10 @@ namespace nurl
                 return string.Empty;
             }
 
-            byte[] btsLF = ASCIIEncoding.ASCII.GetBytes(strLinefeed);
+            byte[] btsLF = ASCIIEncoding.ASCII.GetBytes(strLinefeed); // Create proper linefeed
             int contentLength = -1;
 
+            // Get Headers.
             while (strHeaderLine != null && strHeaderLine != string.Empty)
             {
                 byte[] bts = ASCIIEncoding.ASCII.GetBytes(strHeaderLine);
@@ -555,8 +595,37 @@ namespace nurl
 
                 if (this.bDecodeGzip && isGzipLine(strHeaderLine))
                 {
-                    streamToUse = new GZipStream(streamFromServer, CompressionMode.Decompress);
+                    bIsGzip = true;
+
+
                 }
+
+                // If we have utf-8
+                if (isContainedHeaderStatement(strHeaderLine, "content-type:", "charset=utf-8"))
+                {
+                    this.decoder = System.Text.UTF8Encoding.UTF8.GetDecoder();
+                }
+
+                /*
+                if (!bIsChunked && bDecodeChunked)
+                {
+                    bIsChunked = isChunkedLine(strHeaderLine);
+
+                    if (bIsChunked)
+                    {
+                        //throw new FormatException("Chunking not supported yet!");
+
+                        if (bIsGzip)
+                        {
+                            streamToUse = new GZipStream(new ChunkedStream(streamFromServer), CompressionMode.Decompress);
+                        }
+                        else
+                        {
+                            streamToUse = new ChunkedStream(streamFromServer);
+                        }
+                    }
+                }
+                 */
 
                 if (this.bUseContentLength && contentLength == -1)
                 {
@@ -583,6 +652,24 @@ namespace nurl
             // Check content length
             if (contentLength != 0)
             {
+                Stream streamToUse = streamFromServer;
+
+                if (bIsChunked)
+                {
+                    if (bIsGzip)
+                    {
+                        streamToUse = new GZipStream(new ChunkedStream(streamFromServer), CompressionMode.Decompress);
+                    }
+                    else
+                    {
+                        streamToUse = new ChunkedStream(streamFromServer);
+                    }
+                }
+                else if(bIsGzip)
+                {
+                    streamToUse = new GZipStream(streamFromServer, CompressionMode.Decompress);
+                }
+
                 // Now we are finished with headers so we read the rest of the response
                 fillMessageData(streamToUse, messageData, streamFromServer);
             }
@@ -605,7 +692,7 @@ namespace nurl
 
             try
             {
-                bytes = streamToUse.Read(buffer, 0, buffer.Length);
+                bytes = streamToUse.Read(buffer, 0, buffer.Length);                
             }
             catch (InvalidDataException exInvalidData)
             {
@@ -626,7 +713,7 @@ namespace nurl
                 this.echoWrite(buffer, this.outputStreams, false);
 
                 // Convert to Ascii.
-                Decoder decoder = Encoding.ASCII.GetDecoder();
+                
                 char[] chars = new char[decoder.GetCharCount(buffer, 0, bytes)];
                 decoder.GetChars(buffer, 0, bytes, chars, 0);
 

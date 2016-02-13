@@ -41,6 +41,8 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="BinaryLineStream.cs" />
+    <Compile Include="ChunkedStream.cs" />
     <Compile Include="FileConvert.cs" />
     <Compile Include="Nurl.cs" />
     <Compile Include="Program.cs" />

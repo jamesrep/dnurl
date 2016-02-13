@@ -7,6 +7,11 @@ using System.IO;
 
 namespace nurl
 {
+
+
+    /// <summary>
+    /// File conversions
+    /// </summary>
     class FileConvert
     {
         static string STR_CRLF = "\r\n";
@@ -17,6 +22,8 @@ namespace nurl
 
             Console.WriteLine(strConverted);
         }
+
+
 
         static string getRequestFromTamperData(string strFile, string strMethod, string strUrl)
         {
