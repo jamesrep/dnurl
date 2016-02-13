@@ -63,6 +63,11 @@ namespace nurl
 
                     Console.WriteLine(ht.Count);
                 }
+                else if (args[i] == "--bodyprint")
+                {
+
+                    Console.WriteLine(nurl.getServerAsciiBody());
+                }
                 else if (args[i] == "--skipheaders")
                 {
                     nurl.bSkipHeaders = true;

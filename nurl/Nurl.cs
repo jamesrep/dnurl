@@ -267,6 +267,44 @@ namespace nurl
             return receivedAsciiInStream;
         }
 
+
+        /// <summary>
+        /// Retrieve body
+        /// </summary>
+        /// <returns></returns>
+        public string getServerAsciiBody()
+        {
+            string strReceivedAscii = getServerAsciiResults();
+
+            if (strReceivedAscii == null) return null;
+
+            string[] strAll = strReceivedAscii.Replace("\r", "").Split(new char[] { '\n' });
+
+            int index = 0;
+
+            for (int i = 0; i < strAll.Length; i++)
+            {
+                if (strAll[i].Length == 0)
+                {
+
+                    index = i;
+                    break;
+                }
+            }
+
+            StringBuilder sb = new StringBuilder();
+
+            for (int x = index; x < strAll.Length; x++)
+            {
+                sb.Append(strAll[x]);
+                sb.Append("\r\n");
+            }
+
+            string strBody = sb.ToString();
+
+            return strBody;
+        }
+
         
         /// <summary>
         /// Returns the response code (HTTP OK 200 etc.)
@@ -429,7 +467,7 @@ namespace nurl
             }
             else
             {
-                messageData = readMessageBinary(stream);
+                messageData = readMessageBinary(stream, stream);
             }
 
             // Write message
@@ -480,7 +518,7 @@ namespace nurl
         /// </summary>
         /// <param name="streamFromServer"></param>
         /// <returns>The string that has been read</returns>
-        string readMessage(Stream streamFromServer) //, Stream sw)
+        string readMessage(Stream streamFromServer) 
         {
             Stream streamToUse = streamFromServer; 
             StringBuilder messageData = new StringBuilder();            
@@ -546,27 +584,33 @@ namespace nurl
             if (contentLength != 0)
             {
                 // Now we are finished with headers so we read the rest of the response
-                fillMessageData(streamToUse, messageData);
+                fillMessageData(streamToUse, messageData, streamFromServer);
             }
 
             return messageData.ToString();
         }
 
-        string readMessageBinary(Stream stream)
+        string readMessageBinary(Stream stream, Stream streamFromServer)
         {
             StringBuilder messageData = new StringBuilder();
-            fillMessageData(stream, messageData);
+            fillMessageData(stream, messageData, streamFromServer);
 
             return messageData.ToString();
         }
 
-        void fillMessageData(Stream streamToUse, StringBuilder messageData)
+        void fillMessageData(Stream streamToUse, StringBuilder messageData, Stream streamFromServer)
         {
             byte[] buffer = new byte[2048];
             int bytes = 0;
 
             try
             {
+                bytes = streamToUse.Read(buffer, 0, buffer.Length);
+            }
+            catch (InvalidDataException exInvalidData)
+            {
+                Console.WriteLine("[-] Warning!!!  " + exInvalidData.Message + ", reverting to main stream!");
+                streamToUse = streamFromServer;
                 bytes = streamToUse.Read(buffer, 0, buffer.Length);
             }
             catch (System.IO.IOException)
