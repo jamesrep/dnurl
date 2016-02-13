@@ -142,6 +142,84 @@ namespace nurl
             return System.Text.ASCIIEncoding.ASCII.GetBytes(strAscii);
         }
 
+        byte[] fixContentLength(byte [] btsToSend)
+        {
+            int postStart = getPostStart(btsToSend); // Get start position of the post message.
+
+            if (postStart >= 0) // If we have a post message
+            {
+                string strAscii = System.Text.ASCIIEncoding.ASCII.GetString(btsToSend);
+
+                if (strAscii != null)
+                {
+                    string strAscii2 = strAscii.Replace(" ", "").ToLower();
+
+                    int lengthIndex = strAscii2.IndexOf(STR_CONTENTLENGTH_FIRST);
+                    int realLengthIndex = strAscii.ToLower().IndexOf(STR_CONTENTLENGTH_FIRST);
+
+                    if (lengthIndex >= 0)
+                    {
+                        int x = 0;
+                        int starter = lengthIndex + STR_CONTENTLENGTH_FIRST.Length;
+                        int realStarter = realLengthIndex + STR_CONTENTLENGTH_FIRST.Length + 1;
+
+                        for (x = starter; x < strAscii2.Length; x++)
+                        {
+                            if (strAscii2[x] == '\r' || strAscii2[x] == '\n')
+                            {
+                                break;
+                            }
+                        }
+
+                        if (x > starter)
+                        {
+                            string strLengthText = strAscii2.Substring(starter, (x - starter));
+                            int lengthRes = 0;
+
+                            // If we have an integer we replace it with the real content length.
+                            if (int.TryParse(strLengthText, out lengthRes))
+                            {
+                                int realContentLength = btsToSend.Length - postStart;
+
+                                // We only replace if we do not have the same
+                                if (realContentLength != lengthRes)
+                                {
+                                    // Get Real length bytes
+                                    byte[] btsToSet = System.Text.ASCIIEncoding.ASCII.GetBytes(realContentLength.ToString());
+
+                                    // Create final array
+                                    byte[] btsFull = new byte[realStarter + btsToSet.Length + (btsToSend.Length - realStarter - strLengthText.Length)];
+
+                                    // Part 1.
+                                    byte[] btsFirst = new byte[realStarter];
+                                    Array.Copy(btsToSend, btsFirst, realStarter);
+
+                                    // Part 3.
+                                    byte[] btsLast = new byte[btsFull.Length - realStarter - btsToSet.Length];
+                                    Array.Copy(btsToSend, realStarter + strLengthText.Length, btsLast, 0, btsLast.Length);
+
+
+                                    // Smash all parts together
+                                    Array.Copy(btsFirst, btsFull, btsFirst.Length);
+                                    Array.Copy(btsToSet, 0, btsFull, btsFirst.Length, btsToSet.Length);
+                                    Array.Copy(btsLast, 0, btsFull, btsFirst.Length + btsToSet.Length, btsLast.Length);
+
+                                    btsToSend = btsFull;
+                                }
+
+                            }
+                            else
+                            {
+                                Console.WriteLine("[-] ERROR: Can not parse the supplied content-length: " + strLengthText);
+                            }
+                        }
+                    }
+                }
+            }
+
+            return btsToSend;
+        }
+
         /// <summary>
         /// Execute the send and receive
         /// </summary>
@@ -159,97 +237,16 @@ namespace nurl
             FileStream sw = null;
             byte[] btsToSend = File.ReadAllBytes(strFileName);
 
+            // If we should replace parts of the file then we replace it here 
             btsToSend = replaceText(btsToSend);
 
-            if(this.receiveTimeout >= 0)
-            {
-                client.ReceiveTimeout = receiveTimeout;
-            }
-
-            if (this.sendTimeout >= 0)
-            {
-                client.SendTimeout = sendTimeout;
-            }
-            
+            // Set timeouts
+            if(this.receiveTimeout >= 0)  client.ReceiveTimeout = receiveTimeout;
+            if (this.sendTimeout >= 0)  client.SendTimeout = sendTimeout;
+                        
             // Parse content length and replace the current value with the proper one 
-            // TODO: Move this to a separate function.
-            if (bParseContentLength)
-            {
-                int postStart = getPostStart(btsToSend); // Get start position of the post message.
-
-                if (postStart >= 0) // If we have a post message
-                {
-                    string strAscii = System.Text.ASCIIEncoding.ASCII.GetString(btsToSend);
-
-                    if (strAscii != null)
-                    {
-                        string strAscii2 = strAscii.Replace(" ", "").ToLower();
-
-                        int lengthIndex = strAscii2.IndexOf(STR_CONTENTLENGTH_FIRST);
-                        int realLengthIndex = strAscii.ToLower().IndexOf(STR_CONTENTLENGTH_FIRST);
-
-                        if (lengthIndex >= 0)
-                        {
-                            int x = 0;
-                            int starter = lengthIndex + STR_CONTENTLENGTH_FIRST.Length;
-                            int realStarter = realLengthIndex + STR_CONTENTLENGTH_FIRST.Length + 1;
-
-                            for (x = starter; x < strAscii2.Length; x++)
-                            {
-                                if (strAscii2[x] == '\r' || strAscii2[x] == '\n')
-                                {
-                                    break;
-                                }
-                            }
-
-                            if (x > starter)
-                            {
-                                string strLengthText = strAscii2.Substring(starter, (x - starter));
-                                int lengthRes = 0;
-
-                                // If we have an integer we replace it with the real content length.
-                                if (int.TryParse(strLengthText, out lengthRes))
-                                {
-                                    int realContentLength = btsToSend.Length - postStart;
-
-                                    // We only replace if we do not have the same
-                                    if (realContentLength != lengthRes)
-                                    {
-                                        // Get Real length bytes
-                                        byte[] btsToSet = System.Text.ASCIIEncoding.ASCII.GetBytes(realContentLength.ToString());
-
-                                        // Create final array
-                                        byte[] btsFull = new byte[realStarter + btsToSet.Length + (btsToSend.Length - realStarter - strLengthText.Length)];
-
-                                        // Part 1.
-                                        byte[] btsFirst = new byte[realStarter];
-                                        Array.Copy(btsToSend, btsFirst, realStarter);
-
-                                        // Part 3.
-                                        byte[] btsLast = new byte[btsFull.Length - realStarter - btsToSet.Length];
-                                        Array.Copy(btsToSend, realStarter + strLengthText.Length, btsLast, 0, btsLast.Length);
-
-
-                                        // Smash all parts together
-                                        Array.Copy(btsFirst, btsFull, btsFirst.Length);
-                                        Array.Copy(btsToSet, 0, btsFull, btsFirst.Length, btsToSet.Length);
-                                        Array.Copy(btsLast, 0, btsFull, btsFirst.Length + btsToSet.Length, btsLast.Length);
-
-                                        btsToSend = btsFull;
-                                    }
-
-                                }
-                                else
-                                {
-                                    Console.WriteLine("[-] ERROR: Can not parse the supplied content-length: " + strLengthText);
-                                }
-                            }
-                        }
-                    }
-                }
-                
-            }
-
+            if (bParseContentLength) btsToSend = fixContentLength(btsToSend);
+           
             // If we should use an output file
             if (strOutfile != null)
             {
@@ -266,8 +263,6 @@ namespace nurl
                 {
                     sw = new FileStream(strOutfile, FileMode.Append);
                 }
-
-                
             }
 
             // If we should use SSL
@@ -275,7 +270,6 @@ namespace nurl
             {
                 stream = new SslStream(client.GetStream(), false, new RemoteCertificateValidationCallback(verifyServerCertificate), null);
                 ((SslStream) stream).AuthenticateAsClient(strHost);                
-
             }
             else
             {

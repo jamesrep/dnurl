@@ -29,6 +29,9 @@ namespace nurl
         static void Main(string[] args)
         {
             Nurl nurl = new Nurl();
+            string strTamperConvertMethod = "GET";
+            string strTamperConvertPath = "/";
+            bool bActionDone = false;
 
             for (int i = 0; i < args.Length; i++)
             {
@@ -73,6 +76,12 @@ namespace nurl
                         i++;
                         nurl.strFileName = args[i];
                     }
+                    else if (args[i] == "--tamperconvert")
+                    {
+                        i++;
+                        FileConvert.printTamperRequest(args[i], strTamperConvertMethod, strTamperConvertPath);
+                        bActionDone = true;
+                    }
                     else if (args[i] == "--port")
                     {
                         i++;
@@ -106,13 +115,16 @@ namespace nurl
                 }                
             }
 
-            if(nurl.strHost == null)
+            if (nurl.strHost == null && !bActionDone)
             {
                 printUsage();
                 return;
             }
 
-            nurl.run();
+            if (nurl.strHost != null)
+            {
+                nurl.run();
+            }
         }
     }
 }
