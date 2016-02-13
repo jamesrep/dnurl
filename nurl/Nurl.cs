@@ -358,7 +358,6 @@ namespace nurl
             // Read all bytes and prepare TCP client.
             Stream stream = null;
             TcpClient client = new TcpClient(strHost, port);
-            //FileStream sw = null;
             byte[] btsToSend = File.ReadAllBytes(strFileName);
 
             // If we should replace parts of the file then we replace it here 
@@ -506,13 +505,7 @@ namespace nurl
             {
                 byte[] bts = ASCIIEncoding.ASCII.GetBytes(strHeaderLine);
 
-                /*
-                if (sw != null)
-                {
-                    sw.Write(bts, 0, bts.Length);
-                    sw.Write(btsLF, 0, btsLF.Length);
-                }*/
-
+                // Output headers and linefeed
                 echoWrite(bts, this.outputStreams, false);
                 echoWrite(btsLF, this.outputStreams, false);
 
@@ -543,14 +536,9 @@ namespace nurl
                 }
             }
 
+            // Output linefeed
             if (strHeaderLine == string.Empty)
             {
-                /*
-                if (sw != null)
-                {
-                    sw.Write(btsLF, 0, btsLF.Length);
-                }
-                 */
                 this.echoWrite(btsLF, outputStreams, false);
             }
 
