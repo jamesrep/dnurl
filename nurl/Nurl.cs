@@ -33,6 +33,7 @@ namespace nurl
         public int sendTimeout = -1;
         public List <string> strReplacers = new List<string>();
         public bool bAppend = false;
+        public List<Stream> outputStreams = new List<Stream>(); /// Output streams to use.
 
         const string STR_GZIP = "content-encoding: gzip";
         const string STR_CONTENTLENGTH = "content-length: ";
@@ -52,6 +53,11 @@ namespace nurl
             return false;
         }
 
+        /// <summary>
+        /// Return the content length in file.
+        /// </summary>
+        /// <param name="strAll"></param>
+        /// <returns></returns>
         static int getContentLength(string strAll)
         {
             if (strAll == null) return -1;
@@ -142,6 +148,11 @@ namespace nurl
             return System.Text.ASCIIEncoding.ASCII.GetBytes(strAscii);
         }
 
+        /// <summary>
+        /// Fix the content length in bytes that are to be sent to the server.
+        /// </summary>
+        /// <param name="btsToSend"></param>
+        /// <returns></returns>
         byte[] fixContentLength(byte [] btsToSend)
         {
             int postStart = getPostStart(btsToSend); // Get start position of the post message.
@@ -220,6 +231,116 @@ namespace nurl
             return btsToSend;
         }
 
+        byte[] receivedBytesInStream = null;
+        string receivedAsciiInStream = null;
+        MemoryStream memStream = new MemoryStream();
+
+        public static byte[] readStream(Stream input)
+        {
+            byte[] buffer = new byte[102400];
+            MemoryStream temporaryMemstream = new MemoryStream();            
+            int readBytes = 0;
+
+            input.Seek(0, SeekOrigin.Begin); // Start from beginning
+
+            while ((readBytes = input.Read(buffer, 0, buffer.Length)) > 0)
+            {
+                temporaryMemstream.Write(buffer, 0, readBytes);
+            }
+
+            return temporaryMemstream.ToArray();            
+        }
+
+        /// <summary>
+        /// Get the ascii results.
+        /// </summary>
+        /// <returns></returns>
+        public string getServerAsciiResults()
+        {
+            if (receivedAsciiInStream == null)
+            {
+                byte[] btsAll = getServerResults();
+
+                receivedAsciiInStream = System.Text.ASCIIEncoding.ASCII.GetString(btsAll);
+            }
+
+            return receivedAsciiInStream;
+        }
+
+        
+        /// <summary>
+        /// Returns the response code (HTTP OK 200 etc.)
+        /// which we assume it is the first line of the server response.
+        /// </summary>
+        /// <returns></returns>
+        public string getResponseCode()
+        {
+            Hashtable htHeaders = new Hashtable();
+            string strReceivedAscii = getServerAsciiResults();
+
+            if (strReceivedAscii == null) return null;
+
+            string[] strAll = strReceivedAscii.Replace("\r", "").Split(new char[] { '\n' });
+
+            if (strAll == null || strAll.Length < 1) return null;
+
+            return strAll[0];
+        }
+
+        /// <summary>
+        /// Parses server response and retrieves the headers.
+        /// </summary>
+        /// <returns></returns>
+        public Hashtable getServerHeaders()
+        {
+            Hashtable htHeaders = new Hashtable();
+            string strReceivedAscii = getServerAsciiResults();
+
+            if (strReceivedAscii == null) return htHeaders;
+
+            string[] strAll = strReceivedAscii.Replace("\r", "").Split(new char[] { '\n' });
+
+            if (strAll == null) return htHeaders;
+
+            for (int i = 1; i < strAll.Length; i++ )
+            {
+                string[] strSplitted = strAll[i].Split(new char[] { ':' });
+                int first = strAll[i].IndexOf(':');
+
+                if (first > 0)
+                {
+                    string strA = strSplitted[0];
+                    string strB = strAll[i].Substring(first + 1).TrimStart(new char[] { ' ', '\t' });
+                    htHeaders.Add(strA, strB);
+                }
+                else
+                {
+                    break; // Headers end.
+                }
+
+            }
+
+            return htHeaders;
+        }
+
+        
+
+        /// <summary>
+        /// Returns the byte array with server response.
+        /// </summary>
+        /// <returns></returns>
+        public byte [] getServerResults()
+        {
+            if (receivedBytesInStream == null)
+            {
+                receivedBytesInStream = readStream(memStream);
+            }
+
+            return receivedBytesInStream;
+        }
+
+        
+
         /// <summary>
         /// Execute the send and receive
         /// </summary>
@@ -231,10 +352,13 @@ namespace nurl
                 return;
             }
 
+            // Reset memory stream
+            if (memStream != null && outputStreams.Contains(memStream)) outputStreams.Remove(memStream);
+
             // Read all bytes and prepare TCP client.
             Stream stream = null;
             TcpClient client = new TcpClient(strHost, port);
-            FileStream sw = null;
+            //FileStream sw = null;
             byte[] btsToSend = File.ReadAllBytes(strFileName);
 
             // If we should replace parts of the file then we replace it here 
@@ -250,6 +374,8 @@ namespace nurl
             // If we should use an output file
             if (strOutfile != null)
             {
+                FileStream sw = null;
+
                 if (!this.bAppend)
                 {
                     if (File.Exists(strOutfile))
@@ -257,12 +383,14 @@ namespace nurl
                         File.Delete(strOutfile);
                     }
 
-                    sw = new FileStream(strOutfile, FileMode.OpenOrCreate);
+                    sw = new FileStream(strOutfile, FileMode.OpenOrCreate);                    
                 }
                 else
                 {
                     sw = new FileStream(strOutfile, FileMode.Append);
                 }
+
+                outputStreams.Add(sw);
             }
 
             // If we should use SSL
@@ -286,19 +414,23 @@ namespace nurl
             // Write sent bytes to file and stdout
             if (bEchoWrite)
             {
-                echoWrite(btsToSend, sw);
+                echoWrite(btsToSend, this.outputStreams,  true);
             }
 
-            // Read message from server
+            // Add memory stream to output buffer to fetch the server response.            
+            memStream = new MemoryStream();
+            this.outputStreams.Add(memStream);
+
+            // Read message from server and write to output streams.
             string messageData = null;
 
             if (!this.bBinary)
             {
-                messageData = readMessage(stream, sw);
+                messageData = readMessage(stream);
             }
             else
             {
-                messageData = readMessageBinary(stream, sw);
+                messageData = readMessageBinary(stream);
             }
 
             // Write message
@@ -307,31 +439,53 @@ namespace nurl
             // Clean up
             client.Close();
             stream.Close();
-            if (sw != null) sw.Close();
+            
         }
 
-        void echoWrite(byte[] btsToSend, Stream sw)
+        /// <summary>
+        /// After we are done with the object we must close all output streams.
+        /// </summary>
+        public void closeOutputStreams()
         {
+            if (outputStreams != null)
+            {
+                for(int i=0; i < outputStreams.Count; i++)
+                {
+                    outputStreams[i].Close();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Echoes bytes both to stream and console
+        /// </summary>
+        /// <param name="btsToSend"></param>
+        /// <param name="sw"></param>
+        void echoWrite(byte[] btsToSend, List <Stream> sw, bool bWriteConsole)
+        {                        
             string strLines = ASCIIEncoding.ASCII.GetString(btsToSend);
-            Console.WriteLine(strLines);
+            if(bWriteConsole) Console.WriteLine(strLines);
 
             if (sw != null)
             {
-                sw.Write(btsToSend, 0, btsToSend.Length);
-            }
+                for (int i = 0; i < sw.Count; i++)
+                {
+                    sw[i].Write(btsToSend, 0, btsToSend.Length);
+                }
+            }            
         }
 
 
         /// <summary>
         /// Read message sent in stream. If an output file is specified; received message is stored in that file.
         /// </summary>
-        /// <param name="stream"></param>
+        /// <param name="streamFromServer"></param>
         /// <returns>The string that has been read</returns>
-        string readMessage(Stream stream, FileStream sw)
+        string readMessage(Stream streamFromServer) //, Stream sw)
         {
-            Stream streamToUse = stream; 
+            Stream streamToUse = streamFromServer; 
             StringBuilder messageData = new StringBuilder();            
-            StreamReader sr = new StreamReader(stream);
+            StreamReader sr = new StreamReader(streamFromServer);
 
             // First read the header. If the encoding is gzip we need to decompress the result
             string strHeaderLine = null;
@@ -351,11 +505,16 @@ namespace nurl
             while (strHeaderLine != null && strHeaderLine != string.Empty)
             {
                 byte[] bts = ASCIIEncoding.ASCII.GetBytes(strHeaderLine);
+
+                /*
                 if (sw != null)
                 {
                     sw.Write(bts, 0, bts.Length);
                     sw.Write(btsLF, 0, btsLF.Length);
-                }
+                }*/
+
+                echoWrite(bts, this.outputStreams, false);
+                echoWrite(btsLF, this.outputStreams, false);
 
                 if (!bSkipHeaders)
                 {
@@ -365,7 +524,7 @@ namespace nurl
 
                 if (this.bDecodeGzip && isGzipLine(strHeaderLine))
                 {
-                    streamToUse = new GZipStream(stream, CompressionMode.Decompress);
+                    streamToUse = new GZipStream(streamFromServer, CompressionMode.Decompress);
                 }
 
                 if (this.bUseContentLength && contentLength == -1)
@@ -386,32 +545,34 @@ namespace nurl
 
             if (strHeaderLine == string.Empty)
             {
+                /*
                 if (sw != null)
                 {
                     sw.Write(btsLF, 0, btsLF.Length);
                 }
+                 */
+                this.echoWrite(btsLF, outputStreams, false);
             }
 
             // Check content length
             if (contentLength != 0)
             {
-
                 // Now we are finished with headers so we read the rest of the response
-                fillMessageData(streamToUse, sw, messageData);
+                fillMessageData(streamToUse, messageData);
             }
 
             return messageData.ToString();
         }
 
-        string readMessageBinary(Stream stream, FileStream sw)
+        string readMessageBinary(Stream stream)
         {
             StringBuilder messageData = new StringBuilder();
-            fillMessageData(stream, sw, messageData);
+            fillMessageData(stream, messageData);
 
             return messageData.ToString();
         }
 
-        void fillMessageData(Stream streamToUse, Stream sw, StringBuilder messageData)
+        void fillMessageData(Stream streamToUse, StringBuilder messageData)
         {
             byte[] buffer = new byte[2048];
             int bytes = 0;
@@ -428,10 +589,9 @@ namespace nurl
             while (bytes > 0)
             {
                 // Write to output file if exists
-                if (sw != null)
-                {
-                    sw.Write(buffer, 0, bytes);
-                }
+                byte [] btsBuffer = new byte[bytes];
+                Array.Copy(buffer, btsBuffer, btsBuffer.Length);
+                this.echoWrite(buffer, this.outputStreams, false);
 
                 // Convert to Ascii.
                 Decoder decoder = Encoding.ASCII.GetDecoder();

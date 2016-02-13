@@ -23,9 +23,14 @@ namespace nurl
             Console.WriteLine("--receivetimeout - Receive-timeout for client");
             Console.WriteLine("--replace <replace> <newtext> - Replace a text with another before send");
             Console.WriteLine("--append - If the output file should be opened for append (not reset)");
+            Console.WriteLine("--tamperconvert <file> - Convert tamper data copied format into proper request");
 
         }
 
+        /// <summary>
+        /// Here we go
+        /// </summary>
+        /// <param name="args">See argument parsing loop and printUsage()</param>
         static void Main(string[] args)
         {
             Nurl nurl = new Nurl();
@@ -42,6 +47,21 @@ namespace nurl
                 else if (args[i] == "--binary")
                 {
                     nurl.bBinary = true;
+                }
+                else if (args[i] == "--run")
+                {
+                    nurl.run();
+                }
+                else if (args[i] == "--resprint")
+                {
+                    string strAsciiResults = nurl.getServerAsciiResults();
+                    Console.WriteLine(strAsciiResults);
+                }
+                else if (args[i] == "--headerprint")
+                {
+                    System.Collections.Hashtable ht = nurl.getServerHeaders();
+
+                    Console.WriteLine(ht.Count);
                 }
                 else if (args[i] == "--skipheaders")
                 {
@@ -65,11 +85,9 @@ namespace nurl
                 }
                 else if (args[i] == "--append")
                 {
-                    nurl.bAppend = true; 
+                    nurl.bAppend = true;
                 }
-                 
-
-                if (args.Length > (i + 1))
+                else if (args.Length > (i + 1))
                 {
                     if (args[i] == "--request")
                     {
@@ -112,7 +130,19 @@ namespace nurl
                         i++;
                         nurl.strOutfile = args[i];
                     }
-                }                
+                    else
+                    {
+                        Console.WriteLine("Bad input argument: " + args[i]);
+                        printUsage();
+                        return;
+                    }
+                }
+                else
+                {
+                    Console.WriteLine("Bad input argument: " + args[i]);
+                    printUsage();
+                    return;
+                }
             }
 
             if (nurl.strHost == null && !bActionDone)
@@ -124,6 +154,7 @@ namespace nurl
             if (nurl.strHost != null)
             {
                 nurl.run();
+                nurl.closeOutputStreams();
             }
         }
     }
