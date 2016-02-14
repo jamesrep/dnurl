@@ -1,4 +1,8 @@
-﻿using System;
+﻿/// 
+/// Author: James Dickson 
+/// More tools and contact information: www.wallparse.com
+///
+using System;
 using System.Collections;
 using System.Net;
 using System.Net.Sockets;

@@ -1,4 +1,23 @@
-﻿using System;
+﻿/// 
+/// Author: James Dickson 
+/// More tools and contact information: www.wallparse.com
+///
+/// This application is created in order to get control over http-requests in .net
+/// I use it for fuzzing tasks when conducting penetration tests of web applications.
+/// Since it is created in .net and have no dependencies on other non-standard libraries
+/// it is really simple to call from powershell scripts or load directly as a .net-assembly.
+/// 
+/// Example:
+/// nurl.exe --host www.google.com --port 80 --httprequest "GET / HTTP/1.1\r\nHost: www.whateverhost.com\r\nContent-length: 777\r\n\r\nJAMES"
+/// 
+/// To load the assembly in powershell
+/// 
+/// $strPath = c:\absolutepath\to\nurl.exe
+/// $assembly = [Reflection.Assembly]::LoadFile($strPath)
+/// $nurl = $assembly.CreateInstance("nurl.Nurl")
+/// 
+/// After this it is simple to use directly using the $nurl object.
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
