@@ -322,12 +322,13 @@ namespace nurl
 
             int index = 0;
 
+            // Skip all the headers.
             for (int i = 0; i < strAll.Length; i++)
             {
                 if (strAll[i].Length == 0)
                 {
 
-                    index = i;
+                    index = i+1;
                     break;
                 }
             }
@@ -606,26 +607,12 @@ namespace nurl
                     this.decoder = System.Text.UTF8Encoding.UTF8.GetDecoder();
                 }
 
-                /*
+                
                 if (!bIsChunked && bDecodeChunked)
                 {
                     bIsChunked = isChunkedLine(strHeaderLine);
-
-                    if (bIsChunked)
-                    {
-                        //throw new FormatException("Chunking not supported yet!");
-
-                        if (bIsGzip)
-                        {
-                            streamToUse = new GZipStream(new ChunkedStream(streamFromServer), CompressionMode.Decompress);
-                        }
-                        else
-                        {
-                            streamToUse = new ChunkedStream(streamFromServer);
-                        }
-                    }
                 }
-                 */
+                 
 
                 if (this.bUseContentLength && contentLength == -1)
                 {

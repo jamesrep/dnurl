@@ -13,19 +13,42 @@ namespace nurl
     class ChunkedStream : Stream
     {
         Stream instream = null;
+        BinaryLineStream binStream = null;
 
         public ChunkedStream(Stream instream)
         {
             this.instream = instream;
         }
 
-        static uint getChunkSize(Stream inputStream)
+        void seekNextLine(Stream inputStream)
         {
-            byte[] btsChunk = new byte[8];
-            inputStream.Read(btsChunk, 0, btsChunk.Length);
+            int btRead = inputStream.ReadByte();
 
-            string hexString = System.Text.ASCIIEncoding.ASCII.GetString(btsChunk);
-            uint num = (uint)Int32.Parse(hexString, System.Globalization.NumberStyles.HexNumber);
+            while (btRead != -1 && btRead != ((int)'\n'))
+            {
+                btRead = inputStream.ReadByte();
+            }
+        }
+
+        uint getChunkSize(Stream inputStream)
+        {
+            
+            if(binStream==null) binStream = new BinaryLineStream(inputStream);
+            
+
+            string hexString = binStream.ReadLine();
+
+            uint num = 0;
+
+            try
+            {
+                num = (uint)Int32.Parse(hexString, System.Globalization.NumberStyles.HexNumber);
+            }
+            catch
+            {
+                // TODO: Warning for bad chunking format?
+                return 0;
+            }
 
             int btRead = inputStream.ReadByte();
 
@@ -37,7 +60,7 @@ namespace nurl
             return num;
         }
 
-        public static byte[] readAllChunksFromStream(Stream inputStream)
+        public byte[] readAllChunksFromStream(Stream inputStream)
         {
             MemoryStream temporaryMemstream = new MemoryStream();
             int readBytes = 0;
@@ -56,8 +79,14 @@ namespace nurl
                     readBytes = inputStream.Read(buffer, 0, buffer.Length);
 
                     receivedCount += readBytes;
-                    temporaryMemstream.Write(buffer, 0, readBytes);
+                    temporaryMemstream.Write(buffer, 0, readBytes);                
                 }
+
+                // Since there is a linefeed before the next chunk we seek the beginning.
+                seekNextLine(inputStream);
+
+                // Get next chunk size
+                chunkSize = getChunkSize(inputStream);
             }
 
 
@@ -81,7 +110,9 @@ namespace nurl
             readAll(); // Make sure all is read
 
             int readbytes = Math.Min(count, btsAll.Length - position);
-            Array.Copy(btsAll, 0, buffer, offset, readbytes);
+            Array.Copy(btsAll, position, buffer, offset, readbytes);
+
+            position += readbytes; // Step forward to next position.
 
             return readbytes;
         }
