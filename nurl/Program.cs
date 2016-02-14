@@ -24,6 +24,8 @@ namespace nurl
             Console.WriteLine("--replace <replace> <newtext> - Replace a text with another before send");
             Console.WriteLine("--append - If the output file should be opened for append (not reset)");
             Console.WriteLine("--tamperconvert <file> - Convert tamper data copied format into proper request");
+            Console.WriteLine("--httprequest <string> - Use httprequest directly from command line");
+            Console.WriteLine("--stdin - read from stdin instead.");
 
         }
 
@@ -51,6 +53,10 @@ namespace nurl
                 else if (args[i] == "--run")
                 {
                     nurl.run();
+                }
+                else if (args[i] == "--stdin")
+                {
+                    nurl.bReadFromStdin = true;
                 }
                 else if (args[i] == "--resprint")
                 {
@@ -109,6 +115,11 @@ namespace nurl
                     {
                         i++;
                         nurl.port = Convert.ToInt32(args[i]);
+                    }
+                    else if (args[i] == "--httprequest")
+                    {
+                        i++;
+                        nurl.strHttpRequest = args[i];
                     }
                     else if (args[i] == "--sendtimeout")
                     {

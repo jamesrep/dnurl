@@ -38,6 +38,12 @@ namespace nurl
         public bool bIsChunked = false;
         public bool bIsGzip = false;
         public bool bDecodeChunked = true;
+        public string strHttpRequest = null; // If we should get the request directly from the user
+        public bool bReadFromStdin = false; // If we should read from stdin
+
+        byte[] receivedBytesInStream = null;
+        string receivedAsciiInStream = null;
+        MemoryStream memStream = new MemoryStream();
 
         Decoder decoder = Encoding.ASCII.GetDecoder();             
 
@@ -271,10 +277,11 @@ namespace nurl
             return btsToSend;
         }
 
-        byte[] receivedBytesInStream = null;
-        string receivedAsciiInStream = null;
-        MemoryStream memStream = new MemoryStream();
 
+
+        /// <summary>
+        ///  Read all bytes from a stream
+        /// </summary>
         public static byte[] readStream(Stream input)
         {
             byte[] buffer = new byte[102400];
@@ -402,8 +409,6 @@ namespace nurl
             return htHeaders;
         }
 
-        
-
         /// <summary>
         /// Returns the byte array with server response.
         /// </summary>
@@ -418,26 +423,65 @@ namespace nurl
             return receivedBytesInStream;
         }
 
-        
+        /// <summary>
+        /// Returns the bytes to send
+        /// </summary>
+        byte[] getBytesToSend()
+        {
+            // 0. Stdin
+            if (bReadFromStdin)
+            {                
+                Console.SetIn(new StreamReader(Console.OpenStandardInput(8192)));                 
+                string input = Console.In.ReadToEnd();
+
+                byte[] btsToSend = System.Text.ASCIIEncoding.ASCII.GetBytes(input);
+
+                return btsToSend;                
+            }
+
+            // 1. Should we instead use a string with all the headers etc?
+            if (strHttpRequest != null && strHttpRequest.Length > 0)
+            {
+                string strEnd = strHttpRequest.Replace("\\r", "\r").Replace("\\n", "\n"); // Handy if we need to send something on one line.
+                byte[] btsToSend = System.Text.ASCIIEncoding.ASCII.GetBytes(strEnd);
+
+                return btsToSend;
+            }
+
+            // 2. Do we have an input file?
+            if (strFileName != null && strFileName.Length > 0)
+            {
+                if (!File.Exists(strFileName))
+                {
+                    Console.WriteLine("[-] Error: File does not exist: " + strFileName);
+                    return null;
+                }
+                byte[] btsToSend = File.ReadAllBytes(strFileName);
+
+                return btsToSend;
+            }
+
+
+
+
+            return null;
+        }
 
         /// <summary>
         /// Execute the send and receive
         /// </summary>
         public void run()
         {
-            if (!File.Exists(strFileName))
-            {
-                Console.WriteLine("[-] Error: File does not exist: " + strFileName);
-                return;
-            }
 
             // Reset memory stream
             if (memStream != null && outputStreams.Contains(memStream)) outputStreams.Remove(memStream);
 
+            // Get the file contents or otherwise bytes to send
+            byte[] btsToSend = getBytesToSend();
+
             // Read all bytes and prepare TCP client.
             Stream stream = null;
-            TcpClient client = new TcpClient(strHost, port);
-            byte[] btsToSend = File.ReadAllBytes(strFileName);
+            TcpClient client = new TcpClient(strHost, port);            
 
             // If we should replace parts of the file then we replace it here 
             btsToSend = replaceText(btsToSend);
@@ -582,38 +626,38 @@ namespace nurl
             // Get Headers.
             while (strHeaderLine != null && strHeaderLine != string.Empty)
             {
-                byte[] bts = ASCIIEncoding.ASCII.GetBytes(strHeaderLine);
+                byte[] bts = ASCIIEncoding.ASCII.GetBytes(strHeaderLine); // We assume all headers are in ascii
 
-                // Output headers and linefeed
+                // Output headers and linefeed to the listening output streams.
                 echoWrite(bts, this.outputStreams, false);
                 echoWrite(btsLF, this.outputStreams, false);
 
+                // If we should output (to stdout) the headers then we add them here.
                 if (!bSkipHeaders)
                 {
                     messageData.Append(strHeaderLine);
                     messageData.Append(strLinefeed);
                 }
 
+                // Check if we need to decompress the server result
                 if (this.bDecodeGzip && isGzipLine(strHeaderLine))
                 {
                     bIsGzip = true;
-
-
                 }
 
-                // If we have utf-8
+                // Check for utf-8 (important for example swedish pages).
                 if (isContainedHeaderStatement(strHeaderLine, "content-type:", "charset=utf-8"))
                 {
                     this.decoder = System.Text.UTF8Encoding.UTF8.GetDecoder();
                 }
 
-                
+                // Check for chunked format
                 if (!bIsChunked && bDecodeChunked)
                 {
                     bIsChunked = isChunkedLine(strHeaderLine);
                 }
                  
-
+                // Parse content length
                 if (this.bUseContentLength && contentLength == -1)
                 {
                     contentLength = getContentLength(strHeaderLine);
@@ -633,7 +677,8 @@ namespace nurl
             // Output linefeed
             if (strHeaderLine == string.Empty)
             {
-                this.echoWrite(btsLF, outputStreams, false);
+                this.echoWrite(btsLF, outputStreams, false);    // For listening streams
+                messageData.Append(strLinefeed);                // For user interface output
             }
 
             // Check content length
@@ -641,6 +686,7 @@ namespace nurl
             {
                 Stream streamToUse = streamFromServer;
 
+                // Determine which streams to use upon the current format (none, gzip+chunked, gzip, chunked)
                 if (bIsChunked)
                 {
                     if (bIsGzip)
@@ -664,6 +710,9 @@ namespace nurl
             return messageData.ToString();
         }
 
+        /// <summary>
+        ///  Read message from stream without any parsing of headers.
+        /// </summary>
         string readMessageBinary(Stream stream, Stream streamFromServer)
         {
             StringBuilder messageData = new StringBuilder();
@@ -672,9 +721,12 @@ namespace nurl
             return messageData.ToString();
         }
 
+        /// <summary>
+        /// Retrieve the response from the streams
+        /// </summary>
         void fillMessageData(Stream streamToUse, StringBuilder messageData, Stream streamFromServer)
         {
-            byte[] buffer = new byte[2048];
+            byte[] buffer = new byte[8112];
             int bytes = 0;
 
             try
@@ -692,6 +744,7 @@ namespace nurl
                 return;
             }
 
+            // While we have something in the stream we just read and stores the result
             while (bytes > 0)
             {
                 // Write to output file if exists
@@ -699,8 +752,7 @@ namespace nurl
                 Array.Copy(buffer, btsBuffer, btsBuffer.Length);
                 this.echoWrite(buffer, this.outputStreams, false);
 
-                // Convert to Ascii.
-                
+                // Convert to Ascii and store for console output.               
                 char[] chars = new char[decoder.GetCharCount(buffer, 0, bytes)];
                 decoder.GetChars(buffer, 0, bytes, chars, 0);
 
