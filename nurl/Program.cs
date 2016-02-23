@@ -22,7 +22,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 
-namespace nurl
+namespace JamesUtility
 {
     class Program
     {
@@ -54,7 +54,7 @@ namespace nurl
         /// <param name="args">See argument parsing loop and printUsage()</param>
         static void Main(string[] args)
         {
-            Nurl nurl = new Nurl();
+            DNurl nurl = new DNurl();
             string strTamperConvertMethod = "GET";
             string strTamperConvertPath = "/";
             bool bActionDone = false;

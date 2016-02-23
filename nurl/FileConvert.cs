@@ -9,7 +9,7 @@ using System.Text;
 
 using System.IO;
 
-namespace nurl
+namespace JamesUtility
 {
 
 

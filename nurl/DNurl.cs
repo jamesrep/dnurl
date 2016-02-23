@@ -15,9 +15,9 @@ using System.IO.Compression;
 using System.Collections.Generic;
 
 
-namespace nurl
+namespace JamesUtility
 {
-    class Nurl
+    class DNurl
     {           
         public string strFileName;
         public string strHost;

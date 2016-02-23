@@ -9,7 +9,7 @@ using System.Text;
 
 using System.IO;
 
-namespace nurl
+namespace JamesUtility
 {
     /// <summary>
     /// Not used yet. Maybe will be used for chunk-streams when used.

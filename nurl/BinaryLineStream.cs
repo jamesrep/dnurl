@@ -9,7 +9,7 @@ using System.Text;
 
 using System.IO;
 
-namespace nurl
+namespace JamesUtility
 {
     /// <summary>
     /// Class is used for reading lines from network stream as a simple means of parsing http-headers.
