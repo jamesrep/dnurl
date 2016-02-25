@@ -5,16 +5,15 @@ param($strPath = "C:\src\dnurl\nurl\bin\Debug\dnurl.exe")
 $assembly = [Reflection.Assembly]::LoadFile($strPath)
 $nurl = $assembly.CreateInstance("JamesUtility.DNurl")
 
-# Just create some request-file used for tests
-echo "GET / HTTP/1.1" > requestExample.txt
-echo "Host: www.google.com" >> requestExample.txt
 
 # Example of simple automation for google receiving a bad request.
 $nurl.strFileName = "requestExample.txt"
-$nurl.strHost = 173.194.122.207
+$nurl.strHost = "www.google.se"
 $nurl.bIsSSL = $false
-$nurl.bEchoWrite = $false
+$nurl.bEchoWrite = $true
+$nurl.bDebug = $true
 $nurl.port = 80
+$nurl.strHttpRequest = "GET / HTTP/1.1\r\nHost: www.google.se\r\n\r\n"
 
 $nurl.run()
 $strResponseCode = $nurl.getResponseCode()
