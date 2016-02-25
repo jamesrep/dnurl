@@ -45,6 +45,8 @@ namespace JamesUtility
         public string strHttpRequest = null; // If we should get the request directly from the user
         public bool bReadFromStdin = false; // If we should read from stdin
 
+        public bool bDebug = false;
+
         byte[] receivedBytesInStream = null;
         string receivedAsciiInStream = null;
         MemoryStream memStream = new MemoryStream();
@@ -55,6 +57,8 @@ namespace JamesUtility
         const string STR_CHUNKED = "transfer-encoding:";
         const string STR_CONTENTLENGTH = "content-length: ";
         const string STR_CONTENTLENGTH_FIRST = "content-length:";
+
+        const string STR_STANDARDGET = "GET / HTTP/1.1";
         
 
         /// <summary>
@@ -182,6 +186,8 @@ namespace JamesUtility
         /// <returns></returns>
         byte [] replaceText(byte[] btsToSend)
         {
+            if (btsToSend == null) return null;
+
             string strAscii = System.Text.ASCIIEncoding.ASCII.GetString(btsToSend);
 
             if (this.strReplacers.Count < 1)
@@ -466,9 +472,11 @@ namespace JamesUtility
             }
 
 
+            // 3. We have nothing so we send standard
+            string strRequest = string.Format("{0}\r\nHost: {1}\r\n\r\n", STR_STANDARDGET, this.strHost);
 
 
-            return null;
+            return System.Text.ASCIIEncoding.ASCII.GetBytes(strRequest);
         }
 
         /// <summary>
@@ -619,8 +627,13 @@ namespace JamesUtility
             {
                 strHeaderLine = sr.ReadLine();
             }
-            catch (System.IO.IOException)
+            catch (System.IO.IOException ex)
             {
+                if(this.bDebug)
+                {
+                    Console.WriteLine(ex.Message);
+                }
+
                 return string.Empty;
             }
 

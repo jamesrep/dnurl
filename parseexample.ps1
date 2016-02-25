@@ -1,5 +1,5 @@
 # This is just a sample of how to use the dnurl .net-assembly for fuzzing-like tasks.
-param($strPath = "dnurl.exe")
+param($strPath = "C:\src\dnurl\nurl\bin\Debug\dnurl.exe")
 
 # Create the nurl-object
 $assembly = [Reflection.Assembly]::LoadFile($strPath)
