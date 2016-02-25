@@ -7,7 +7,6 @@ $nurl = $assembly.CreateInstance("JamesUtility.DNurl")
 
 
 # Example of simple automation for google receiving a bad request.
-$nurl.strFileName = "requestExample.txt"
 $nurl.strHost = "www.google.se"
 $nurl.bIsSSL = $false
 $nurl.bEchoWrite = $true
