@@ -2,6 +2,7 @@
 /// Author: James Dickson 
 /// More tools and contact information: www.wallparse.com
 ///
+
 using System;
 using System.Collections;
 using System.Net;
@@ -18,7 +19,7 @@ using System.Collections.Generic;
 namespace JamesUtility
 {
     class DNurl
-    {
+    {           
         public string strFileName;
         public string strHost;
         public string strOutfile;
@@ -35,7 +36,7 @@ namespace JamesUtility
         public bool bParseContentLength = true;
         public int receiveTimeout = -1;
         public int sendTimeout = -1;
-        public List<string> strReplacers = new List<string>();
+        public List <string> strReplacers = new List<string>();
         public bool bAppend = false;
         public List<Stream> outputStreams = new List<Stream>(); /// Output streams to use.
 
@@ -44,6 +45,7 @@ namespace JamesUtility
         public bool bDecodeChunked = true;
         public string strHttpRequest = null; // If we should get the request directly from the user
         public bool bReadFromStdin = false; // If we should read from stdin
+        public bool bCareAboutSecurity = false; // Default mode, since this library is for testing.
 
         public bool bDebug = false;
 
@@ -51,7 +53,7 @@ namespace JamesUtility
         string receivedAsciiInStream = null;
         MemoryStream memStream = new MemoryStream();
 
-        Decoder decoder = Encoding.ASCII.GetDecoder();
+        Decoder decoder = Encoding.ASCII.GetDecoder();             
 
         const string STR_GZIP = "content-encoding:";
         const string STR_CHUNKED = "transfer-encoding:";
@@ -59,7 +61,7 @@ namespace JamesUtility
         const string STR_CONTENTLENGTH_FIRST = "content-length:";
 
         const string STR_STANDARDGET = "GET / HTTP/1.1";
-
+        
 
         /// <summary>
         /// Return true if strAll string indicates gzip encoded http result.
@@ -134,6 +136,8 @@ namespace JamesUtility
             return -1;
         }
 
+        
+
         /// <summary>
         /// Always returns true for accepting all certificates (WARNING!!!!)
         /// 
@@ -167,10 +171,10 @@ namespace JamesUtility
 
                     if (lfCount == 2)
                     {
-                        return i + 1;
+                        return i+1;
                     }
                 }
-                else if ('\r' != (char)btsToSend[i])
+                else if('\r' != (char)btsToSend[i])
                 {
                     lfCount = 0;
                 }
@@ -184,7 +188,7 @@ namespace JamesUtility
         /// </summary>
         /// <param name="btsToSend"></param>
         /// <returns></returns>
-        byte[] replaceText(byte[] btsToSend)
+        byte [] replaceText(byte[] btsToSend)
         {
             if (btsToSend == null) return null;
 
@@ -196,7 +200,7 @@ namespace JamesUtility
             }
 
             // TODO: make replacer-class instead.
-            for (int i = 0; i < strReplacers.Count; i += 2)
+            for(int i=0; i < strReplacers.Count; i+=2)
             {
                 strAscii = strAscii.Replace(strReplacers[i], strReplacers[i + 1]);
             }
@@ -209,7 +213,7 @@ namespace JamesUtility
         /// </summary>
         /// <param name="btsToSend"></param>
         /// <returns></returns>
-        byte[] fixContentLength(byte[] btsToSend)
+        byte[] fixContentLength(byte [] btsToSend)
         {
             int postStart = getPostStart(btsToSend); // Get start position of the post message.
 
@@ -295,7 +299,7 @@ namespace JamesUtility
         public static byte[] readStream(Stream input)
         {
             byte[] buffer = new byte[102400];
-            MemoryStream temporaryMemstream = new MemoryStream();
+            MemoryStream temporaryMemstream = new MemoryStream();            
             int readBytes = 0;
             int totalRead = 0;
 
@@ -308,11 +312,11 @@ namespace JamesUtility
             }
 
             byte[] toReturn = new byte[totalRead];
-            byte[] original = temporaryMemstream.ToArray();
+            byte [] original = temporaryMemstream.ToArray();
             Array.Copy(original, toReturn, toReturn.Length);
 
 
-            return toReturn;
+            return toReturn;            
         }
 
         /// <summary>
@@ -403,7 +407,7 @@ namespace JamesUtility
 
             if (strAll == null) return htHeaders;
 
-            for (int i = 1; i < strAll.Length; i++)
+            for (int i = 1; i < strAll.Length; i++ )
             {
                 string[] strSplitted = strAll[i].Split(new char[] { ':' });
                 int first = strAll[i].IndexOf(':');
@@ -428,7 +432,7 @@ namespace JamesUtility
         /// Returns the byte array with server response.
         /// </summary>
         /// <returns></returns>
-        public byte[] getServerResults()
+        public byte [] getServerResults()
         {
             if (receivedBytesInStream == null)
             {
@@ -445,13 +449,13 @@ namespace JamesUtility
         {
             // 0. Stdin
             if (bReadFromStdin)
-            {
-                Console.SetIn(new StreamReader(Console.OpenStandardInput(8192)));
+            {                
+                Console.SetIn(new StreamReader(Console.OpenStandardInput(8192)));                 
                 string input = Console.In.ReadToEnd();
 
                 byte[] btsToSend = System.Text.ASCIIEncoding.ASCII.GetBytes(input);
 
-                return btsToSend;
+                return btsToSend;                
             }
 
             // 1. Should we instead use a string with all the headers etc?
@@ -484,6 +488,8 @@ namespace JamesUtility
             return System.Text.ASCIIEncoding.ASCII.GetBytes(strRequest);
         }
 
+        public bool bEchoConsole = true;
+
         /// <summary>
         /// Execute the send and receive
         /// </summary>
@@ -498,18 +504,18 @@ namespace JamesUtility
 
             // Read all bytes and prepare TCP client.
             Stream stream = null;
-            TcpClient client = new TcpClient(strHost, port);
+            TcpClient client = new TcpClient(strHost, port);            
 
             // If we should replace parts of the file then we replace it here 
             btsToSend = replaceText(btsToSend);
 
             // Set timeouts
-            if (this.receiveTimeout >= 0) client.ReceiveTimeout = receiveTimeout;
-            if (this.sendTimeout >= 0) client.SendTimeout = sendTimeout;
-
+            if(this.receiveTimeout >= 0)  client.ReceiveTimeout = receiveTimeout;
+            if (this.sendTimeout >= 0)  client.SendTimeout = sendTimeout;
+                        
             // Parse content length and replace the current value with the proper one 
             if (bParseContentLength) btsToSend = fixContentLength(btsToSend);
-
+           
             // If we should use an output file
             if (strOutfile != null)
             {
@@ -522,7 +528,7 @@ namespace JamesUtility
                         File.Delete(strOutfile);
                     }
 
-                    sw = new FileStream(strOutfile, FileMode.OpenOrCreate);
+                    sw = new FileStream(strOutfile, FileMode.OpenOrCreate);                    
                 }
                 else
                 {
@@ -535,12 +541,19 @@ namespace JamesUtility
             // If we should use SSL
             if (bIsSSL)
             {
-                stream = new SslStream(client.GetStream(), false, new RemoteCertificateValidationCallback(verifyServerCertificate), null);
-                ((SslStream)stream).AuthenticateAsClient(strHost);
+                if (!bCareAboutSecurity)
+                {
+                    stream = new SslStream(client.GetStream(), false, new RemoteCertificateValidationCallback(verifyServerCertificate), null);
+                }
+                else
+                {
+                    stream = new SslStream(client.GetStream());
+                }
+                ((SslStream) stream).AuthenticateAsClient(strHost);                
             }
             else
             {
-                stream = client.GetStream();
+                stream = client.GetStream();                
             }
 
             // Set timeouts
@@ -553,7 +566,7 @@ namespace JamesUtility
             // Write sent bytes to file and stdout
             if (bEchoWrite)
             {
-                echoWrite(btsToSend, this.outputStreams, true);
+                echoWrite(btsToSend, this.outputStreams, bEchoConsole);
             }
 
             // Add memory stream to output buffer to fetch the server response.            
@@ -578,7 +591,7 @@ namespace JamesUtility
             // Clean up
             client.Close();
             stream.Close();
-
+            
         }
 
         public string strLastMessageData;
@@ -592,7 +605,7 @@ namespace JamesUtility
         {
             if (outputStreams != null)
             {
-                for (int i = 0; i < outputStreams.Count; i++)
+                for(int i=0; i < outputStreams.Count; i++)
                 {
                     outputStreams[i].Close();
                 }
@@ -604,10 +617,10 @@ namespace JamesUtility
         /// </summary>
         /// <param name="btsToSend"></param>
         /// <param name="sw"></param>
-        void echoWrite(byte[] btsToSend, List<Stream> sw, bool bWriteConsole)
-        {
+        void echoWrite(byte[] btsToSend, List <Stream> sw, bool bWriteConsole)
+        {                        
             string strLines = ASCIIEncoding.ASCII.GetString(btsToSend);
-            if (bWriteConsole) Console.WriteLine(strLines);
+            if(bWriteConsole) Console.WriteLine(strLines);
 
             if (sw != null)
             {
@@ -615,7 +628,7 @@ namespace JamesUtility
                 {
                     sw[i].Write(btsToSend, 0, btsToSend.Length);
                 }
-            }
+            }            
         }
 
 
@@ -624,9 +637,9 @@ namespace JamesUtility
         /// </summary>
         /// <param name="streamFromServer"></param>
         /// <returns>The string that has been read</returns>
-        string readMessage(Stream streamFromServer)
+        string readMessage(Stream streamFromServer) 
         {
-            StringBuilder messageData = new StringBuilder();
+            StringBuilder messageData = new StringBuilder();            
             BinaryLineStream sr = new BinaryLineStream(streamFromServer);
 
             // First read the header. If the encoding is gzip we need to decompress the result
@@ -638,7 +651,7 @@ namespace JamesUtility
             }
             catch (System.IO.IOException ex)
             {
-                if (this.bDebug)
+                if(this.bDebug)
                 {
                     Console.WriteLine(ex.Message);
                 }
@@ -682,7 +695,7 @@ namespace JamesUtility
                 {
                     bIsChunked = isChunkedLine(strHeaderLine);
                 }
-
+                 
                 // Parse content length
                 if (this.bUseContentLength && contentLength == -1)
                 {
@@ -724,7 +737,7 @@ namespace JamesUtility
                         streamToUse = new ChunkedStream(streamFromServer);
                     }
                 }
-                else if (bIsGzip)
+                else if(bIsGzip)
                 {
                     streamToUse = new GZipStream(streamFromServer, CompressionMode.Decompress);
                 }
@@ -757,7 +770,7 @@ namespace JamesUtility
 
             try
             {
-                bytes = streamToUse.Read(buffer, 0, buffer.Length);
+                bytes = streamToUse.Read(buffer, 0, buffer.Length);                
             }
             catch (InvalidDataException exInvalidData)
             {
@@ -774,7 +787,7 @@ namespace JamesUtility
             while (bytes > 0)
             {
                 // Write to output file if exists
-                byte[] btsBuffer = new byte[bytes];
+                byte [] btsBuffer = new byte[bytes];
                 Array.Copy(buffer, btsBuffer, btsBuffer.Length);
                 this.echoWrite(buffer, this.outputStreams, false);
 
@@ -796,3 +809,5 @@ namespace JamesUtility
         }
     }
 }
+
+
