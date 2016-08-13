@@ -49,6 +49,8 @@ namespace JamesUtility
 
         public bool bDebug = false;
 
+        public SslProtocols sslprotocols = SslProtocols.Tls12;
+
         byte[] receivedBytesInStream = null;
         string receivedAsciiInStream = null;
         MemoryStream memStream = new MemoryStream();
@@ -549,7 +551,7 @@ namespace JamesUtility
                 {
                     stream = new SslStream(client.GetStream());
                 }
-                ((SslStream) stream).AuthenticateAsClient(strHost);                
+                ((SslStream)stream).AuthenticateAsClient(strHost, null, sslprotocols, false);                
             }
             else
             {
@@ -809,5 +811,6 @@ namespace JamesUtility
         }
     }
 }
+
 
 
